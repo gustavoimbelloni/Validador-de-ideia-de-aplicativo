@@ -139,6 +139,6 @@ Se credenciais forem expostas acidentalmente:
 ---
 
 ## Licença
-Livre para uso educacional e demonstrações. Ajuste conforme sua necessidade.
+Livre para uso educacional e demonstrações.
 
 
