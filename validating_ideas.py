@@ -85,4 +85,18 @@ class AppIdeaValidator(Workflow):
             logger.warning(f"Erro ao obter o conceito central da ideia do aplicativo: {str(e)}")
             return None
 
+    def get_market_analysis(self, app_idea: str, core_concept: AppCoreConcept) -> Optional[AppMarketAnalysis]:
+        """Obtém a análise de mercado da ideia do aplicativo"""
+        agent_input = {"app_idea": app_idea, **core_concept.model_dump()}
+        try:
+            response: RunResponse = self.market_analysis_agent.run(json.dumps(agent_input, indent=4))
+            if not response or not response.content:
+                logger.warning("Não foi possível obter a análise de mercado da ideia do aplicativo")
+            if not isinstance(response.content, AppMarketAnalysis):
+                logger.warning("Tipo de resposta inválido")
+            return response.content
+        except Exception as e:
+            logger.warning(f"Erro ao obter a análise de mercado da ideia do aplicativo: {str(e)}")
+        return None
+
     
