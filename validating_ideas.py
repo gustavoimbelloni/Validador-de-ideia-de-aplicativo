@@ -125,3 +125,23 @@ class AppIdeaValidator(Workflow):
         competitor_review = self.get_competitor_review(app_idea, market_analysis)
         final_response: RunResponse = self.report_agent.run(json.dumps({"app_idea": app_idea, **core_concept.model_dump(), **market_analysis.model_dump(), "competitor_review": competitor_review}, indent=4))
         yield RunResponse(content=final_response.content, event=RunEvent.workflow_completed)
+
+    #Scripts auxiliares
+    def get_user_app_idea():
+        return Prompt.ask("Descreva a ideia do seu aplicativo\n", default="Um aplicativo de produtividade para sessões de trabalho focadas")
+
+    def generate_session_id(idea: str) -> str:
+        """Gere um ID de sessão seguro para URL com base na ideia do aplicativo"""
+        return idea.lower().replace(" ", "-")
+
+    def create_app_validator(session_id: str) -> AppIdeaValidator:
+        """Inicializa o Validador de ideias do aplicativo com uma sessão."""
+        return AppIdeaValidator(description="Validador de ideia de aplicativo", session_id=session_id, storage=SqliteStorage(table_name="app_idea_validator_workflow", db_file="tmp/agno_workflow.db"))
+
+    def execute_validation(validator: AppIdeaValidator, app_idea: str) -> Iterator[RunResponse]:
+        """Executa a validação e retorna o relatório."""
+        return validator.run(app_idea=app_idea)
+
+    def display_report(final_report: Iterator[RunResponse]):
+        """Exibe o relatório de validação final em formato markdown."""
+        pprint_run_response(final_report, markdown=True)
