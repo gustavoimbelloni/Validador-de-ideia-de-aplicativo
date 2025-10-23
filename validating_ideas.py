@@ -1,3 +1,4 @@
+from nt import environ
 import os
 import json
 from typing import Iterator, Optional
@@ -8,14 +9,16 @@ from agno.storage.sqlite import SqliteStorage
 from agno.tools.googlesearch import GoogleSearchTools 
 from agno.utils.log import logger
 from agno.utils.pprint import pprint_run_response
-from agno.workflow import Workflow, RunEvent, RunResponse
-from httpx import Response
+from agno.workflow import Workflow, RunResponse
 from pydantic import BaseModel, Field
 from rich.prompt import Prompt 
 
 load_dotenv()
 
 openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+if not openrouter_api_key:
+    logger.error(f"OPENROUTER_API_KEY não encontrada. Verifique seu arquivo .env em: .env")
+    raise RuntimeError("Configure a variável de ambiente OPENROUTER_API_KEY no .env.")
 
 class AppCoreConcept(BaseModel):
     """Defina o conceito central da ideia do aplicativo"""
@@ -111,20 +114,18 @@ class AppIdeaValidator(Workflow):
             logger.warning(f"Erro ao obter a revisão de concorrentes do aplicativo: {str(e)}")
         return None
 
-    def run(self, app_idea: str) -> Iterator[RunResponse]:
-        """Executa o fluxo de trabalho e gera um relatório final"""
+    def run(self, app_idea: str) -> RunResponse:
+        """Executa o fluxo de trabalho e retorna um RunResponse final"""
         logger.info(f"Gerando relatório para: {app_idea}")
         core_concept = self.get_core_concept(app_idea)
         if not core_concept:
-            yield RunResponse(event=RunEvent.workflow_completed, content=f"Não foi possível obter o conceito central da ideia do aplicativo: {app_idea}")
-            return
+            return RunResponse(content=f"Não foi possível obter o conceito central da ideia do aplicativo: {app_idea}")
         market_analysis = self.get_market_analysis(app_idea, core_concept)
         if not market_analysis:
-            yield RunResponse(event=RunEvent.workflow_completed, content=f"Não foi possível obter a análise de mercado da ideia do aplicativo")
-            return
+            return RunResponse(content=f"Não foi possível obter a análise de mercado da ideia do aplicativo")
         competitor_review = self.get_competitor_review(app_idea, market_analysis)
         final_response: RunResponse = self.report_agent.run(json.dumps({"app_idea": app_idea, **core_concept.model_dump(), **market_analysis.model_dump(), "competitor_review": competitor_review}, indent=4))
-        yield RunResponse(content=final_response.content, event=RunEvent.workflow_completed)
+        return final_response
 
 #Scripts auxiliares
 def get_user_app_idea():
@@ -136,6 +137,7 @@ def generate_session_id(idea: str) -> str:
 
 def create_app_validator(session_id: str) -> AppIdeaValidator:
     """Inicializa o Validador de ideias do aplicativo com uma sessão."""
+    os.makedirs("tmp", exist_ok=True)
     return AppIdeaValidator(description="Validador de ideia de aplicativo", session_id=session_id, storage=SqliteStorage(table_name="app_idea_validator_workflow", db_file="tmp/agno_workflow.db"))
 
 def execute_validation(validator: AppIdeaValidator, app_idea: str) -> Iterator[RunResponse]:
