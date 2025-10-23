@@ -99,4 +99,14 @@ class AppIdeaValidator(Workflow):
             logger.warning(f"Erro ao obter a análise de mercado da ideia do aplicativo: {str(e)}")
         return None
 
-    
+    def get_competitor_review(self, app_idea: str, market_analysis: AppMarketAnalysis) -> Optional[str]:
+        """Obtém a revisão de concorrentes do aplicativo"""
+        agent_input = {"app_idea": app_idea, **market_analysis.model_dump()}
+        try:
+            response: RunResponse = self.competitor_review_agent.run(json.dumps(agent_input, indent=4))
+            if not response or not response.content:
+                logger.warning("Resposta vazia para revisão do Competidor")
+            return response.content
+        except Exception as e:
+            logger.warning(f"Erro ao obter a revisão de concorrentes do aplicativo: {str(e)}")
+        return None
