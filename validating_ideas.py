@@ -110,3 +110,18 @@ class AppIdeaValidator(Workflow):
         except Exception as e:
             logger.warning(f"Erro ao obter a revisão de concorrentes do aplicativo: {str(e)}")
         return None
+
+    def run(self, app_idea: str) -> Iterator[RunResponse]:
+        """Executa o fluxo de trabalho e gera um relatório final"""
+        logger.info(f"Gerando relatório para: {app_idea}")
+        core_concept = self.get_core_concept(app_idea)
+        if not core_concept:
+            yield RunResponse(event=RunEvent.workflow_completed, content=f"Não foi possível obter o conceito central da ideia do aplicativo: {app_idea}")
+            return
+        market_analysis = self.get_market_analysis(app_idea, core_concept)
+        if not market_analysis:
+            yield RunResponse(event=RunEvent.workflow_completed, content=f"Não foi possível obter a análise de mercado da ideia do aplicativo")
+            return
+        competitor_review = self.get_competitor_review(app_idea, market_analysis)
+        final_response: RunResponse = self.report_agent.run(json.dumps({"app_idea": app_idea, **core_concept.model_dump(), **market_analysis.model_dump(), "competitor_review": competitor_review}, indent=4))
+        yield RunResponse(content=final_response.content, event=RunEvent.workflow_completed)
